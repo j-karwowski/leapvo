@@ -15,3 +15,5 @@ weights
 build
 data
 thirdparty
+custom
+leapvo.egg-info

@@ -25,6 +25,11 @@ def main(cfg: DictConfig):
         cfg.data.skip,
     )
 
+    print(f'image dir: {imagedir}')
+    print(f'calib: {calib}')
+    print(f'stride: {stride}')
+    print(f'skip: {skip}')
+
     if os.path.isdir(imagedir):
         if cfg.data.traj_format == "sintel":
             dataloader = sintel_stream(imagedir, calib, stride, skip)
