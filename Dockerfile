@@ -45,7 +45,7 @@ ENV PATH=/opt/miniconda/envs/leapvo-env/bin:$PATH
 ENV PATH=/usr/local/cuda-11.3/bin${PATH:+:${PATH}}
 
 # Setup Eigen
-RUN unzip eigen-3.4.0.zip -d thirdparty
+# RUN unzip eigen-3.4.0.zip -d thirdparty
 
 CMD ["conda", "run", "-n", "leapvo-env", "python", "run.py"]
 # CMD ["conda", "run", "-n", "leapvo-env", "python", "-m", "main.eval", "--config-path=../configs", "--config-name=demo", "data.imagedir=/data/samples/sintel_market_5/frames", "data.calib=data/samples/sintel_market_5/calib.txt", "data.savedir=logs/sintel_market_5", "data.name=sintel_market_5", "save_trajectory=true", "save_video=true", "save_plot=true"]

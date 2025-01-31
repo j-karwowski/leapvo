@@ -314,8 +314,10 @@ class LEAPVO:
             xy_gt (tensor): B, S, N, 2
             valid (tensor): B, S, N, 2
         """
+        print('In get_gt_trajs()')
         B, N = xys.shape[:2]
         S = len(self.local_window_depth_g)
+        print(f'- S {S} and N {N}')
 
         depths = (
             torch.stack(self.local_window_depth_g, dim=0).unsqueeze(0).to(xys.device)
@@ -364,8 +366,10 @@ class LEAPVO:
         Returns:
             queries: (1, N, 3) in format (t, x, y)
         """
+        print('In get_queries()')
 
         S = len(self.local_window)
+        print(f'- S: {S}')
         xys = self.patches_[self.n - S : self.n, :, :2, self.P // 2, self.P // 2]
         xys = xys.unsqueeze(0)  # B, S, M, 2
 
@@ -526,8 +530,11 @@ class LEAPVO:
         return tracks, visibilities, stats
 
     def get_window_trajs(self, only_coords=False):
+        print('In get_window_traj()')
         rgbs = torch.stack(self.local_window, dim=0).unsqueeze(0)  # B, S, C, H, W
         B, S_local, _, H, W = rgbs.shape
+
+        print(f'- S_local: {S_local}')
 
         queries = self.get_queries()
 
@@ -557,6 +564,8 @@ class LEAPVO:
                     .repeat(1, vis_label.shape[1], 1)
                 )
                 statie_e = 1 - dynamic_e
+
+                print(f'- dynamic_e ({dynamic_e.shape}) - ex. {dynamic_e[0][1][:5]}')
             else:
                 statie_e = 1 - stats["dynamic_e"]
             static_th = torch.quantile(statie_e, (1 - self.cfg.slam.STATIC_QUANTILE))
@@ -607,9 +616,18 @@ class LEAPVO:
         if coords_vars is not None:
             stats["coords_vars"] = coords_vars[:, :S_local]
 
+        print(f'- static_label ({static_label.shape}) - ex. {static_label[0][0][:5]}')
+        print(f'- statie_e ({statie_e.shape}) - ex. {statie_e[0][1][:5]}')
+
+        print(f'- local_target (trajs) ({local_target.shape}) - ex. {local_target[0][0][0]}')
+        print(f'- vis_label ({vis_label.shape}) - ex. {vis_label[0][0][:5]}')
+        print(f'- queries ({queries.shape}) - ex. {queries[0][0][:5]}')
+        # Stats is a dictionary consisting of 'vis_label', 'static_label', 'conf_label' and 'coords_vars'
+  
         return local_target, vis_label, queries, stats
 
     def predict_target(self):
+        print('In predict_target()')
         # predict target
         with torch.no_grad():
             (
@@ -618,13 +636,16 @@ class LEAPVO:
                 queries,
                 stats,
             ) = self.get_window_trajs()
-
+        print('Back in predict_target()')
         # save predictions
         self.last_target = trajs
         self.last_valid = vis_label
 
         B, S, N, C = trajs.shape
+        print(f'- S {S} and N {N}')
+
         local_target = rearrange(trajs, "b s n c -> b (n s) c")
+        print(f'- local_target (trajs) after 1. rearrange ({local_target.shape}) - ex. {local_target[0][0][0]}')
 
         # predict weight
         local_weight = torch.ones_like(local_target)
@@ -660,6 +681,7 @@ class LEAPVO:
         local_target_ = rearrange(
             local_target, "b (s1 m s) c -> b s s1 m c", s=S, m=self.M
         )
+        print(f'- local_target_ (trajs) after 2.rearrange ({local_target.shape}) - ex. {local_target[0][0][0]}')
         local_weight_ = rearrange(
             local_weight, "b (s1 m s) c -> b s s1 m c", s=S, m=self.M
         )
@@ -671,9 +693,11 @@ class LEAPVO:
             "weights": local_weight_,
             "queries": queries,
         }
+        print(f'- vis_data: \n-- fid: {vis_data["fid"]} \n-- targets: {vis_data["targets"].shape} \n-- weights: {vis_data["weights"].shape} \n-- queries: {vis_data["queries"].shape}')
         for key, value in stats.items():
             if value is not None:
                 vis_data[key] = value
+        print(f'- vis_data: \n-- vis_label: {vis_data["vis_label"].shape} \n-- static_label: {vis_data["static_label"].shape} \n-- conf_label: {vis_data["conf_label"].shape} \n-- coords_vars: {vis_data["coords_vars"].shape}')
 
         self.visualizer.add_track(vis_data)
 
@@ -766,8 +790,10 @@ class LEAPVO:
             )
 
         if self.viewer is not None:
+            # I don't think viewer is ever set
             self.viewer.update_image(image)
         if self.visualizer is not None:
+            # Always happens
             self.visualizer.add_frame(image)
 
         # image preprocessing
@@ -775,6 +801,7 @@ class LEAPVO:
 
         # generate patches
         patches, clr = self.generate_patches(image)
+        # TODO: What is clr?
 
         # depth initialization
         patches[:, :, 2] = torch.rand_like(patches[:, :, 2, 0, 0, None, None])
@@ -826,6 +853,7 @@ class LEAPVO:
         self.remove_factors(to_remove)
 
     def get_results(self):
+        print('In get_results()')
         self.traj = {}
         for i in range(self.n):
             self.traj[self.tstamps_[i].item()] = self.poses_[i]

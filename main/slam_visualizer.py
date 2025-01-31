@@ -45,6 +45,8 @@ class SLAMVisualizer:
         if save_dir is not None:
             self.save_dir = save_dir
 
+        print(f'cfg full: {self.cfg_full}')
+
         if self.cfg.mode == "rainbow":
             self.color_map = mpl.colormaps["gist_rainbow"]
         elif self.cfg.mode == "cool":
@@ -67,7 +69,9 @@ class SLAMVisualizer:
     def add_track(self, track):
         self.tracks.append(track)
 
+    # TODO: This method exists double. This one seems to never be called. 
     def draw_tracks_on_frames(self):
+        print('In draw_tracks_on_frames() (in line 74):')
         video = torch.stack(self.frames, dim=0)
         video = F.pad(
             video,
@@ -81,15 +85,20 @@ class SLAMVisualizer:
         res_video_dyn = []
         # process input video
         for rgb in video:
+            print(f'- rgb: {rgb}')
             res_video_sta.append(rgb.copy())
             res_video_dyn.append(rgb.copy())
 
         T = self.fps * 2  # period of color repetition
 
         for t, track in enumerate(self.tracks):
+            # print(f'- For loop over T {t} - Track: {track}')
+
             targets = track["targets"][0].long().detach().cpu().numpy()
             targets = targets + self.pad_value
             S, N, _ = targets.shape
+
+            # print(f'-- Targets ({targets.shape}) - ex. {targets[0][0]}')
 
             vis_label = None
             static_label = None
@@ -97,10 +106,13 @@ class SLAMVisualizer:
 
             if "vis_label" in track:
                 vis_label = track["vis_label"][0].detach().cpu().numpy()
+                # print(f'-- vis_label: {vis_label}')
             if "static_label" in track:
                 static_label = track["static_label"][0].detach().cpu().numpy()
+                # print(f'-- static_label: {static_label}')
             if "coords_vars" in track:
                 coords_vars = track["coords_vars"][0].detach().cpu().numpy()
+                # print(f'-- Coords_vars: {coords_vars}')
 
             for s in range(S):
                 color = (
@@ -108,8 +120,12 @@ class SLAMVisualizer:
                 )
                 vector_colors = np.repeat(color, N, axis=0)
 
+                # print(f'-- color: {color}')
+                # print(f'-- vector_colors: {vector_colors}')
+
                 for n in range(N):
                     coord = (targets[s, n, 0], targets[s, n, 1])
+                    # print(f'-- for loop n {n} - coord: {coord}')
                     visibile = True
                     if vis_label is not None:
                         visibile = vis_label[s, n]
@@ -205,13 +221,17 @@ class LEAPVisualizer(SLAMVisualizer):
         vector_colors: np.ndarray,
         alpha: float = 0.5,
     ):
+        # print('-- In _draw_pred_tracks().')
         T, N, _ = tracks.shape
+
+        # print(f'--- Tracks ({tracks.shape})')
 
         for s in range(T - 1):
             vector_color = vector_colors[s]
             original = rgb.copy()
             alpha = (s / T) ** 2
             for i in range(N):
+                # Again in for loop over t and n, coordinates are extracted
                 coord_y = (int(tracks[s, i, 0]), int(tracks[s, i, 1]))
                 coord_x = (int(tracks[s + 1, i, 0]), int(tracks[s + 1, i, 1]))
                 if coord_y[0] != 0 and coord_y[1] != 0:
@@ -235,8 +255,14 @@ class LEAPVisualizer(SLAMVisualizer):
         visibility: torch.Tensor = None,
         variances: torch.Tensor = None,
     ):
+        print('- In draw_tracks_on_video()')
         B, T, C, H, W = video.shape
         _, _, N, D = tracks.shape
+
+        print(f'-- T {T} and N {N}')
+
+        print(f'-- tracks ({tracks.shape})')    
+        # print(f'-- video ({video.shape})')          
 
         assert D == 2
         assert C == 3
@@ -245,9 +271,14 @@ class LEAPVisualizer(SLAMVisualizer):
 
         res_video = []
 
+        # Minor customization of visualization method: White video background
+        white_rgb = np.full((H, W, C), 255, dtype=np.uint8)
+
         # process input video
         for rgb in video:
-            res_video.append(rgb.copy())
+            # print(f'- rgb ({rgb.shape}) and white_rgb ({white_rgb.shape})')
+            # res_video.append(rgb.copy())
+            res_video.append(white_rgb.copy())
 
         # vector_colors = np.zeros((T, N, 3))
 
@@ -256,8 +287,10 @@ class LEAPVisualizer(SLAMVisualizer):
         #     vector_colors[t] = np.repeat(color, N, axis=0)
 
         #  draw tracks
+        print(f'-- Drawing tracks in for loop from 1 to T {T}')
         if self.tracks_leave_trace != 0:
             for t in range(1, T):
+                # print(f'- For loop over T iterarion {t}')
                 first_ind = (
                     max(0, t - self.tracks_leave_trace)
                     if self.tracks_leave_trace >= 0
@@ -266,6 +299,9 @@ class LEAPVisualizer(SLAMVisualizer):
                 curr_tracks = tracks[first_ind : t + 1]
                 curr_colors = vector_colors[first_ind : t + 1]
 
+                # print(f'--- curr_tracks ({curr_tracks.shape})') #  -- ex. {curr_tracks[0][0]}')
+                # print(f'--- curr_colors ({curr_colors.shape})') #  -- ex. {curr_colors[0][0]}') 
+
                 res_video[t] = self._draw_pred_tracks(
                     res_video[t],
                     curr_tracks,
@@ -273,9 +309,12 @@ class LEAPVisualizer(SLAMVisualizer):
                 )
 
         #  draw points
-        for t in range(T):
-            for i in range(N):
+        print(f'-- Drawing points with their coords in for loop over T {T} and N {N}')
+        for t in range(T): # Looping through all frames in T --> Temporal loop
+            for i in range(N): # Looping through all N tracked objects
+                # print(f'- For loop over T and N iteration {t} - {i}')
                 coord = (tracks[t, i, 0], tracks[t, i, 1])
+                # print(f'-- coord: {coord}')
                 visibile = True
                 if visibility is not None:
                     visibile = visibility[0, t, i]
@@ -310,6 +349,7 @@ class LEAPVisualizer(SLAMVisualizer):
         return torch.from_numpy(np.stack(res_video)).permute(0, 3, 1, 2)
 
     def draw_tracks_on_frames(self):
+        print('In draw_tracks_on_frames() (in line 350):')
         video = torch.stack(self.frames, dim=0)
         video = F.pad(
             video,
@@ -322,14 +362,21 @@ class LEAPVisualizer(SLAMVisualizer):
         res_video_dyn = video.clone()
 
         T = self.fps  # period of color repetition
-
+        print(f'- T: {T}') 
+        print(f'- self.tracks ({len(self.tracks)})') # 25 for sintel # 50 for my data
+        
         for t, track in enumerate(self.tracks):
+            print(f'- For loop over T {t} - Track with FID: {track["fid"]}')
             fid = track["fid"]
             targets = track["targets"] + self.pad_value
             weights = track["weights"]
             queries = track["queries"]
             vis_label = track["vis_label"]
             B, S, S1, M, C = targets.shape
+
+            print(f'- targets ({targets.shape})')
+
+            print(f'- S {S}, S1 {S1} and M {M}')
 
             vector_colors = np.zeros((S, S1, M, 3))
             for s1 in range(S1):
@@ -367,6 +414,7 @@ class LEAPVisualizer(SLAMVisualizer):
                 else None
             )
 
+            print('- Call draw_tracks_on_video() with dynamic yellow parameters (no variance)')
             res_video = self.draw_tracks_on_video(
                 video=dyn_rgbs,
                 tracks=dyn_tracks,
@@ -402,6 +450,7 @@ class LEAPVisualizer(SLAMVisualizer):
                     else None
                 )
 
+                print('- Call draw_tracks_on_video() with dynamic red parameters (with variance)')
                 res_video = self.draw_tracks_on_video(
                     video=dyn_rgbs,
                     tracks=dyn_tracks,
@@ -429,6 +478,8 @@ class LEAPVisualizer(SLAMVisualizer):
                     if variances is not None
                     else None
                 )
+
+                print('- Call draw_tracks_on_video() with static green parameters (with variance)')
                 res_video = self.draw_tracks_on_video(
                     video=rgbs,
                     tracks=sta_tracks,
@@ -439,6 +490,7 @@ class LEAPVisualizer(SLAMVisualizer):
                 res_video_sta[fid - S : fid] = res_video
             else:
                 rgbs = res_video_sta[fid - S : fid][None]
+                print('- Call draw_tracks_on_video() with general parameters (no variance)')
                 res_video = self.draw_tracks_on_video(
                     video=rgbs,
                     tracks=targets.reshape(B, S, -1, C),

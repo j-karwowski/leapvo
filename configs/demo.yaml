@@ -39,7 +39,7 @@ visualizer:
   mode: "rainbow"  # 'cool', 'optical_flow'
   linewidth: 2
   show_first_frame: 10
-  tracks_leave_trace: 8  # -1 for infinite
+  tracks_leave_trace: 0  # default 8 # -1 for infinite
 
 data:
   imagedir: ''

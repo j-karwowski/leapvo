@@ -46,6 +46,8 @@ def main(cfg: DictConfig):
     for i, (t, image, intrinsics) in enumerate(tqdm(dataloader)):
         if t < 0:
             break
+        
+        print(f'\n---- FOR-LOOP: {t}, {image.shape}, {intrinsics}')
 
         image_list.append(image)
         intrinsics_list.append(intrinsics)

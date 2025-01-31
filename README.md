@@ -42,6 +42,27 @@ unzip eigen-3.4.0.zip -d thirdparty
 pip install .
 ```
 
+## Alternative Installation
+This fork additionally contains a docker setup. To run the project with docker, first build the docker:
+
+```
+docker buildx build --platform=linux/amd64 -t leapvo-anaconda . --load
+```
+
+Afterwards you can run docker with an interactive shell:
+```
+docker run -v <your-local-project-directory>:/workspace -it leapvo-anaconda /bin/bash
+```
+
+In order to avoid rebuilding after editing project files, this command uses "-v" to bind the local project-directory. After editing a file the docker run command needs to be rerun, as well as the following command below. Please customize the run command to point to your local project folder. 
+
+Every time you start the interactive shell you have to run 
+```
+pip install .
+```
+
+After this is done, you can run the following demo below. 
+
 ## Demos
 Our method requires an RGB video and camera intrinsics as input. We provide the model checkpoint and example data on [Google Drive](https://drive.google.com/drive/folders/1muTSIpAvm61YrSZJhOrybcvd34BZ3wK7?usp=sharing). Please download `leap_kernel.pth` and place it in the `weights` folder, and download `samples` and place them in the `data` folder.
 
