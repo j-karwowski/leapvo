@@ -366,10 +366,9 @@ class LEAPVO:
         Returns:
             queries: (1, N, 3) in format (t, x, y)
         """
-        print('In get_queries()')
+        # print('In get_queries()')
 
-        S = len(self.local_window)
-        print(f'- S: {S}')
+        S = len(self.local_window) # same as S_local in get_window_traj() and S in predict_target()
         xys = self.patches_[self.n - S : self.n, :, :2, self.P // 2, self.P // 2]
         xys = xys.unsqueeze(0)  # B, S, M, 2
 
@@ -530,11 +529,10 @@ class LEAPVO:
         return tracks, visibilities, stats
 
     def get_window_trajs(self, only_coords=False):
-        print('In get_window_traj()')
+        # print('In get_window_traj()')
         rgbs = torch.stack(self.local_window, dim=0).unsqueeze(0)  # B, S, C, H, W
         B, S_local, _, H, W = rgbs.shape
-
-        print(f'- S_local: {S_local}')
+        # print(f'- S_local: {S_local}') # Same as S
 
         queries = self.get_queries()
 
@@ -617,8 +615,7 @@ class LEAPVO:
             stats["coords_vars"] = coords_vars[:, :S_local]
 
         print(f'- static_label ({static_label.shape}) - ex. {static_label[0][0][:5]}')
-        print(f'- statie_e ({statie_e.shape}) - ex. {statie_e[0][1][:5]}')
-
+       # print(f'- statie_e ({statie_e.shape}) - ex. {statie_e[0][1][:5]}')
         print(f'- local_target (trajs) ({local_target.shape}) - ex. {local_target[0][0][0]}')
         print(f'- vis_label ({vis_label.shape}) - ex. {vis_label[0][0][:5]}')
         print(f'- queries ({queries.shape}) - ex. {queries[0][0][:5]}')
@@ -627,7 +624,7 @@ class LEAPVO:
         return local_target, vis_label, queries, stats
 
     def predict_target(self):
-        print('In predict_target()')
+        # print('In predict_target()')
         # predict target
         with torch.no_grad():
             (
@@ -636,13 +633,13 @@ class LEAPVO:
                 queries,
                 stats,
             ) = self.get_window_trajs()
-        print('Back in predict_target()')
+        # print('Back in predict_target()')
         # save predictions
         self.last_target = trajs
         self.last_valid = vis_label
 
         B, S, N, C = trajs.shape
-        print(f'- S {S} and N {N}')
+        # print(f'- S {S} and N {N}')
 
         local_target = rearrange(trajs, "b s n c -> b (n s) c")
         print(f'- local_target (trajs) after 1. rearrange ({local_target.shape}) - ex. {local_target[0][0][0]}')
@@ -681,7 +678,7 @@ class LEAPVO:
         local_target_ = rearrange(
             local_target, "b (s1 m s) c -> b s s1 m c", s=S, m=self.M
         )
-        print(f'- local_target_ (trajs) after 2.rearrange ({local_target.shape}) - ex. {local_target[0][0][0]}')
+        # print(f'- local_target_ (trajs) after 2.rearrange ({local_target.shape}) - ex. {local_target[0][0][0]}')
         local_weight_ = rearrange(
             local_weight, "b (s1 m s) c -> b s s1 m c", s=S, m=self.M
         )
@@ -697,7 +694,7 @@ class LEAPVO:
         for key, value in stats.items():
             if value is not None:
                 vis_data[key] = value
-        print(f'- vis_data: \n-- vis_label: {vis_data["vis_label"].shape} \n-- static_label: {vis_data["static_label"].shape} \n-- conf_label: {vis_data["conf_label"].shape} \n-- coords_vars: {vis_data["coords_vars"].shape}')
+        print(f'- vis_data: \n-- vis_label: {vis_data["vis_label"].shape} \n-- static_label: {vis_data["static_label"].shape} \n-- conf_label: {vis_data["conf_label"].shape}  \n-- coords_vars: {vis_data["coords_vars"].shape}')
 
         self.visualizer.add_track(vis_data)
 
@@ -832,6 +829,7 @@ class LEAPVO:
         self.n += 1
         self.m += self.M
 
+        # only every kf_stride frames, new keyframes are selected for tracking (default: every 2nd frame)
         if (self.n - 1) % self.kf_stride == 0:
             self.append_factors(*self.__edges())
             self.predict_target()
@@ -853,7 +851,7 @@ class LEAPVO:
         self.remove_factors(to_remove)
 
     def get_results(self):
-        print('In get_results()')
+        # print('In get_results()')
         self.traj = {}
         for i in range(self.n):
             self.traj[self.tstamps_[i].item()] = self.poses_[i]

@@ -1,4 +1,5 @@
 import os
+import json
 
 import cv2
 import matplotlib as mpl
@@ -69,7 +70,7 @@ class SLAMVisualizer:
     def add_track(self, track):
         self.tracks.append(track)
 
-    # TODO: This method exists double. This one seems to never be called. 
+    # TODO: This method exists double and is never called
     def draw_tracks_on_frames(self):
         print('In draw_tracks_on_frames() (in line 74):')
         video = torch.stack(self.frames, dim=0)
@@ -221,7 +222,7 @@ class LEAPVisualizer(SLAMVisualizer):
         vector_colors: np.ndarray,
         alpha: float = 0.5,
     ):
-        # print('-- In _draw_pred_tracks().')
+        print('-- In _draw_pred_tracks().')
         T, N, _ = tracks.shape
 
         # print(f'--- Tracks ({tracks.shape})')
@@ -262,7 +263,7 @@ class LEAPVisualizer(SLAMVisualizer):
         print(f'-- T {T} and N {N}')
 
         print(f'-- tracks ({tracks.shape})')    
-        # print(f'-- video ({video.shape})')          
+        print(f'-- video ({video.shape})')          
 
         assert D == 2
         assert C == 3
@@ -272,13 +273,13 @@ class LEAPVisualizer(SLAMVisualizer):
         res_video = []
 
         # Minor customization of visualization method: White video background
-        white_rgb = np.full((H, W, C), 255, dtype=np.uint8)
+        # white_rgb = np.full((H, W, C), 255, dtype=np.uint8) # ends up overriding the dots put in the video in previous method calls
 
         # process input video
         for rgb in video:
             # print(f'- rgb ({rgb.shape}) and white_rgb ({white_rgb.shape})')
-            # res_video.append(rgb.copy())
-            res_video.append(white_rgb.copy())
+            res_video.append(rgb.copy()) 
+            # res_video.append(white_rgb.copy())
 
         # vector_colors = np.zeros((T, N, 3))
 
@@ -287,163 +288,221 @@ class LEAPVisualizer(SLAMVisualizer):
         #     vector_colors[t] = np.repeat(color, N, axis=0)
 
         #  draw tracks
-        print(f'-- Drawing tracks in for loop from 1 to T {T}')
+        # print(f'-- Drawing tracks in for loop from 1 to T {T}')
         if self.tracks_leave_trace != 0:
-            for t in range(1, T):
+            for t in range(1, T): # loop over frames starting at 1
                 # print(f'- For loop over T iterarion {t}')
                 first_ind = (
-                    max(0, t - self.tracks_leave_trace)
+                    max(0, t - self.tracks_leave_trace) # define start of trace
                     if self.tracks_leave_trace >= 0
                     else 0
                 )
-                curr_tracks = tracks[first_ind : t + 1]
-                curr_colors = vector_colors[first_ind : t + 1]
+                curr_tracks = tracks[first_ind : t + 1] # get past track positions
+                curr_colors = vector_colors[first_ind : t + 1] # get past colors
 
                 # print(f'--- curr_tracks ({curr_tracks.shape})') #  -- ex. {curr_tracks[0][0]}')
                 # print(f'--- curr_colors ({curr_colors.shape})') #  -- ex. {curr_colors[0][0]}') 
 
                 res_video[t] = self._draw_pred_tracks(
-                    res_video[t],
-                    curr_tracks,
-                    curr_colors,
+                    res_video[t], # current frame
+                    curr_tracks, # tracks up to current time
+                    curr_colors, # corrsponding colors
                 )
 
         #  draw points
         print(f'-- Drawing points with their coords in for loop over T {T} and N {N}')
-        for t in range(T): # Looping through all frames in T --> Temporal loop
-            for i in range(N): # Looping through all N tracked objects
+        for t in range(T): # loop through all frames in T --> Temporal loop
+            invalid_coords = 0
+            for i in range(N): # loop through all N tracked objects
+
                 # print(f'- For loop over T and N iteration {t} - {i}')
-                coord = (tracks[t, i, 0], tracks[t, i, 1])
+                coord = (tracks[t, i, 0], tracks[t, i, 1]) # extraxt track coordinates
                 # print(f'-- coord: {coord}')
+
                 visibile = True
                 if visibility is not None:
-                    visibile = visibility[0, t, i]
+                    visibile = visibility[0, t, i] # check if track is visible
 
-                if coord[0] != 0 and coord[1] != 0:
+                if coord[0] != 0 and coord[1] != 0: # ignore invalid coordinates
                     cv2.circle(
                         res_video[t],
                         coord,
-                        int(self.linewidth * 2),
-                        vector_colors[t, i].tolist(),
-                        thickness=-1 if visibile else 2 - 1,
+                        int(self.linewidth * 2), # circle size
+                        vector_colors[t, i].tolist(), # circle color
+                        # TODO: make visibility "optional"?
+                        thickness=-1 if visibile else 2 - 1, # fill if visible, otherwise outline
                     )
 
+                    # print(f"-- Frame {t}, Track {i}, Variance: {variances[0, t, i]}, Scale: {conf_scale}")
+
                     # draw uncertainty
+                    # TODO: investigate this methods effect on resulting visualizations
                     if variances is not None:
                         # conf_scale = np.sqrt(coords_vars[s,n]) * 3
-                        conf_scale = 4 - 3 * np.exp(-variances[0, t, i])
+                        conf_scale = 4 - 3 * np.exp(-variances[0, t, i]) # scale uncertainty
                         overlay = res_video[t].copy()
                         cv2.circle(
-                            overlay,
-                            coord,
-                            int(self.linewidth * 2 * conf_scale * 3),
-                            vector_colors[t, i].tolist(),
-                            1,
-                            -1,
+                            overlay, # img
+                            coord, # circle center
+                            int(self.linewidth * 2 * conf_scale * 3), # radius # larger transparent uncertainty circle
+                            # mpl.colors.to_rgba("black"), # TODO: check, where/if high variance dots are visible
+                            vector_colors[t, i].tolist(), # color
+                            1, # thickness
+                            -1, # TODO: Does this make sense here?
                         )
                         alpha = 0.5
-                        res_video[t] = cv2.addWeighted(
+                        res_video[t] = cv2.addWeighted( # blends overlay (with variance circles) and res_video[t] (original frame) using alpha blending
                             overlay, alpha, res_video[t], 1 - alpha, 0
                         )
+                else:
+                    # coord is considered invalid with (0,0)
+                    # print(f"-- invalid coord: frame {t}, track {i}, coord {coord}")
+                    invalid_coords += 1
+
+            # print(f'-- in frame {t} there were: {N} tracked points and {invalid_coords} invalid tracks.')
 
         return torch.from_numpy(np.stack(res_video)).permute(0, 3, 1, 2)
-
+    
+    def tensor_to_list(self, obj):
+        """Recursively converts all tensors in a structure (list/dict) to lists."""
+        if isinstance(obj, torch.Tensor):
+            return obj.tolist()  
+        elif isinstance(obj, dict):
+            return {k: self.tensor_to_list(v) for k, v in obj.items()}  
+        elif isinstance(obj, list):
+            return [self.tensor_to_list(v) for v in obj] 
+        else:
+            return obj  
+        
     def draw_tracks_on_frames(self):
         print('In draw_tracks_on_frames() (in line 350):')
-        video = torch.stack(self.frames, dim=0)
-        video = F.pad(
+        video = torch.stack(self.frames, dim=0) # generate video by stacking individual frames
+        N, C, H, W = video.shape 
+        print(f'video shape: {video.shape}')
+
+        # customization here: Make video all white, to get clearer view of track movements
+        video = torch.full((N, C, H, W), 255, dtype=video.dtype)
+        video = F.pad( # padding video equally on all sides of video (value is 0)
             video,
             (self.pad_value, self.pad_value, self.pad_value, self.pad_value),
             "constant",
             255,
         )
+        print(f'- video length in frames: {len(video)}')
 
-        res_video_sta = video.clone()
-        res_video_dyn = video.clone()
+        # customization here: Drawing all dots on one single video
+        # res_video_sta = video.clone()
+        # res_video_dyn = video.clone()
+        combined_video = video.clone()
 
-        T = self.fps  # period of color repetition
-        print(f'- T: {T}') 
-        print(f'- self.tracks ({len(self.tracks)})') # 25 for sintel # 50 for my data
+        T = self.fps  # period of color repetition (default 10)
+        print(f'- self.tracks ({len(self.tracks)})') # 25 for sintel # 50 for my data, i.e. every other frame is skipped
         
+        with open("track_data.txt", "w") as f:
+            json.dump(self.tensor_to_list(self.tracks), f, indent=4)
+
         for t, track in enumerate(self.tracks):
             print(f'- For loop over T {t} - Track with FID: {track["fid"]}')
-            fid = track["fid"]
-            targets = track["targets"] + self.pad_value
+            fid = track["fid"] # frame id
+            targets = track["targets"] + self.pad_value # coordinates of tracked points
             weights = track["weights"]
             queries = track["queries"]
             vis_label = track["vis_label"]
-            B, S, S1, M, C = targets.shape
+            B, S, S1, M, C = targets.shape 
+            # S = frames in sliding window
+            # S1 = subtracks?
+            # M = number of tracked points
+            # C = dimension of tracks, e.g. (x, y)
 
             print(f'- targets ({targets.shape})')
-
             print(f'- S {S}, S1 {S1} and M {M}')
 
-            vector_colors = np.zeros((S, S1, M, 3))
+            # initializing track colors
+            vector_colors = np.zeros((S, S1, M, 3)) # array to store RGB colors for each track across frames
             for s1 in range(S1):
-                kf_stride = self.cfg_full.slam.kf_stride
-                fid_norm = ((fid // kf_stride + s1) % T) / T
-                color = np.array(self.color_map(fid_norm)[:3]) * 255
+                kf_stride = self.cfg_full.slam.kf_stride # controlling how frequently new keyframes are added
+                fid_norm = ((fid // kf_stride + s1) % T) / T # normalizing fid between 0 and 1 to determine  color
+                color = np.array(self.color_map(fid_norm)[:3]) * 255 # maps normalized fid to a color
                 vector_colors[:, s1] = repeat(color, "c -> s m c", s=S, m=M)
                 # vector_colors[t] = repeat()
 
             if "coords_vars" in track:
                 variances = track["coords_vars"]
 
-            # plot uncertanity
-            variances = track["coords_vars"]
-            var_mean = variances.mean(dim=1)
-            high_var_th = torch.quantile(var_mean, 0.9)
-            high_mask = var_mean[0] > high_var_th
+            # handle variances/uncertainty
+            variances = track["coords_vars"] # contains the uncertainty values for each track point 
+            var_mean = variances.mean(dim=1) # mean variance for each point across frames
+            high_var_th = torch.quantile(var_mean, 0.9) # 90th percentile of the mean variance, used to filter points with high uncertainty
+            high_mask = var_mean[0] > high_var_th # boolean mask identifying points with variance above the threshold
+            # high_mask is used to handle dissapearing tracks, i.e., filter out tracks with too high uncertainty.
             variances = variances / variances.mean()  # normalized
 
-            dyn_rgbs = res_video_dyn[fid - S : fid][None]
-            dyn_tracks = targets.reshape(B, S, -1, C)[:, :, high_mask]
-            dyn_vis_label = vis_label[:, :, high_mask]
-            dyn_colors = vector_colors.reshape(S, -1, 3)[
+            # extrating dynamic tracks
+            # dyn_rgbs = res_video_dyn[fid - S : fid][None] #  frames corresponding to the dynamic track (fid - S to fid), with an extra batch dimension
+            dyn_rgbs = combined_video[fid - S : fid][None] # customization
+            dyn_tracks = targets.reshape(B, S, -1, C)[:, :, high_mask] # extracting points with high uncertainty (dynamic points) using high_mask
+            dyn_vis_label = vis_label[:, :, high_mask] # visibility labels for those points
+            dyn_colors = vector_colors.reshape(S, -1, 3)[ # colors for the dynamic points, reshaped to match the point indices
                 :, high_mask.detach().cpu().numpy()
             ]
 
+            # assigning yellow color to extracted tracks with high uncertainty
             dyn_color = mpl.colors.to_rgba("yellow")
             dyn_colors[..., 0] = dyn_color[0] * 255
             dyn_colors[..., 1] = dyn_color[1] * 255
             dyn_colors[..., 2] = dyn_color[2] * 255
 
+            # extracting variances for dynamic tracks, but it is not used when drawing uncertain dynamic tracks
             dyn_var = (
                 variances[:, :, high_mask].detach().cpu().numpy()
                 if variances is not None
                 else None
             )
 
+            print(f'- yellow dyn_tracks ({dyn_tracks.shape})')
+
             print('- Call draw_tracks_on_video() with dynamic yellow parameters (no variance)')
+            # drawing dynamic yellow tracks on video
             res_video = self.draw_tracks_on_video(
-                video=dyn_rgbs,
+                video=dyn_rgbs, # visualizes the dynamic tracks on the selected frames (dyn_rgbs)
                 tracks=dyn_tracks,
                 visibility=dyn_vis_label,
                 vector_colors=dyn_colors,
                 variances=None,  # dyn_var
             )
-            res_video_dyn[fid - S : fid] = res_video
+            # res_video_dyn[fid - S : fid] = res_video # updates the corresponding frames in res_video_dyn with the drawn tracks
+            combined_video[fid - S : fid] = res_video # customization
 
-            variances = None
+            variances = None # resetting variances
 
-            if "static_label" in track:
-                static_label = track["static_label"]
+            # handling static tracks
+            if "static_label" in track: 
+                static_label = track["static_label"] # static_label is a tensor indicating which track points are considered static vs. dynamic
+                # likely contains a per-point classification (1 = static, 0 = dynamic) ???
 
-                dyn_rgbs = res_video_dyn[fid - S : fid][None]
+                # dyn_rgbs = res_video_dyn[fid - S : fid][None]
+                dyn_rgbs = combined_video[fid - S : fid][None] # customization
+
                 # check dynamic mask of the full track
-                static_mask = static_label[0].float().mean(dim=0) < 0.5
+                static_mask = static_label[0].float().mean(dim=0) < 0.5 # checks if the average confidence score for static points is low (< 0.5)
+                # boolean mask (static_mask), where True represents dynamic points and False represents static points
 
-                dyn_tracks = targets.reshape(B, S, -1, C)[:, :, static_mask]
-                dyn_vis_label = vis_label[:, :, static_mask]
-                dyn_colors = vector_colors.reshape(S, -1, 3)[
+                # extracting dynamic tracks
+                dyn_tracks = targets.reshape(B, S, -1, C)[:, :, static_mask] # points classified as dynamic (static_mask is True).
+                dyn_vis_label = vis_label[:, :, static_mask] # visibility information for dynamic points
+                dyn_colors = vector_colors.reshape(S, -1, 3)[ # extracting corresponding colors
                     :, static_mask.detach().cpu().numpy()
                 ]
 
+                print(f'- red dyn_tracks ({dyn_tracks.shape})')
+
+                # assigning red color to dynamic tracks
                 dyn_color = mpl.colors.to_rgba("red")
                 dyn_colors[..., 0] = dyn_color[0] * 255
                 dyn_colors[..., 1] = dyn_color[1] * 255
                 dyn_colors[..., 2] = dyn_color[2] * 255
 
+                # extracting variance for dynamic tracks
                 dyn_var = (
                     variances[:, :, static_mask].detach().cpu().numpy()
                     if variances is not None
@@ -451,35 +510,44 @@ class LEAPVisualizer(SLAMVisualizer):
                 )
 
                 print('- Call draw_tracks_on_video() with dynamic red parameters (with variance)')
+                # drawing dynamic tracks 
+                # TODO: Are unertain yellow tracks drawn again in red?
                 res_video = self.draw_tracks_on_video(
-                    video=dyn_rgbs,
+                    video=dyn_rgbs, # overlay dynamic tracks on the dyn_rgbs frames
                     tracks=dyn_tracks,
                     visibility=dyn_vis_label,
                     vector_colors=dyn_colors,
                     variances=dyn_var,
                 )
-                res_video_dyn[fid - S : fid] = res_video
+                # res_video_dyn[fid - S : fid] = res_video # stores the updated frames back into res_video_dyn
+                combined_video[fid - S : fid] = res_video # customization
 
-                rgbs = res_video_sta[fid - S : fid][None]
-                sta_tracks = targets.reshape(B, S, -1, C)[:, :, ~static_mask]
-                sta_vis_label = vis_label[:, :, ~static_mask]
-                sta_colors = vector_colors.reshape(S, -1, 3)[
+                # extracting static tracks
+                # rgbs = res_video_sta[fid - S : fid][None]
+                rgbs = combined_video[fid - S : fid][None] # customization
+                sta_tracks = targets.reshape(B, S, -1, C)[:, :, ~static_mask] # ~static_mask negates the mask
+                sta_vis_label = vis_label[:, :, ~static_mask] # assign visibility labels
+                sta_colors = vector_colors.reshape(S, -1, 3)[ # extract colors for static tracks
                     :, ~static_mask.detach().cpu().numpy()
                 ]
 
                 # use one color
+                # color static tracks green
                 sta_color = mpl.colors.to_rgba("lawngreen")
                 sta_colors[..., 0] = sta_color[0] * 255
                 sta_colors[..., 1] = sta_color[1] * 255
                 sta_colors[..., 2] = sta_color[2] * 255
 
+                # extract variance for static tracks
                 sta_var = (
                     variances[:, :, ~static_mask].detach().cpu().numpy()
                     if variances is not None
                     else None
                 )
+                print(f'- green sta_tracks ({sta_tracks.shape})')
 
                 print('- Call draw_tracks_on_video() with static green parameters (with variance)')
+                # draw green static tracks 
                 res_video = self.draw_tracks_on_video(
                     video=rgbs,
                     tracks=sta_tracks,
@@ -487,10 +555,15 @@ class LEAPVisualizer(SLAMVisualizer):
                     vector_colors=sta_colors,
                     variances=sta_var,
                 )
-                res_video_sta[fid - S : fid] = res_video
+                # res_video_sta[fid - S : fid] = res_video
+                combined_video[fid - S : fid] = res_video # customization
+
             else:
-                rgbs = res_video_sta[fid - S : fid][None]
+                # if static labels are not available it assumes all tracks are "static"
+                # rgbs = res_video_sta[fid - S : fid][None]
+                rgbs = combined_video[fid - S : fid][None] # customization
                 print('- Call draw_tracks_on_video() with general parameters (no variance)')
+                # draw all tracks on res_video_sta without variance
                 res_video = self.draw_tracks_on_video(
                     video=rgbs,
                     tracks=targets.reshape(B, S, -1, C),
@@ -498,11 +571,16 @@ class LEAPVisualizer(SLAMVisualizer):
                     vector_colors=vector_colors.reshape(S, -1, 3),
                 )
 
-                res_video_sta[fid - S : fid] = res_video
+                # res_video_sta[fid - S : fid] = res_video
+                combined_video[fid - S : fid] = res_video # customization
 
-        res_video = torch.cat([res_video_sta, res_video_dyn], dim=-2)
+        # res_video = torch.cat([res_video_sta, res_video_dyn], dim=-2)
+        res_video = combined_video # customization
 
-        return res_video[None].byte()
+        # concatenates the static (res_video_sta) and dynamic (res_video_dyn) video representations along the width (dim=-2)
+        # results in a single output video with both static and dynamic tracks visualized side by side
+
+        return res_video[None].byte() # returns the final video with an added empty batch dimension and in byte format
 
     def save_video(self, filename, writer=None, step=0):
         video = self.draw_tracks_on_frames()
