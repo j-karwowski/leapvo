@@ -80,6 +80,7 @@ dependencies:
       - decorator==4.4.2
       - einops==0.8.0
       - evo==1.28.0
+      - fastapi[standard]
       - filelock==3.14.0
       - fonttools==4.53.0
       - fsspec==2024.6.0
@@ -98,6 +99,7 @@ dependencies:
       - packaging==24.0
       - pandas==2.2.2
       - proglog==0.1.10
+      - pydantic
       - pygments==2.18.0
       - pyparsing==3.1.2
       - python-dateutil==2.9.0.post0
@@ -114,4 +116,5 @@ dependencies:
       - torch-scatter==2.1.2
       - tqdm==4.66.4
       - tzdata==2024.1
+      - uvicorn
       - zstandard==0.22.0

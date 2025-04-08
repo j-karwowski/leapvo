@@ -11,6 +11,7 @@ from main.stream import dataset_stream, sintel_stream, video_stream
 from main.utils import (eval_metrics, load_traj, plot_trajectory,
                         save_trajectory_tum_format, update_timestamps)
 
+HYDRA_FULL_ERROR=1
 
 @hydra.main(version_base=None, config_path="configs", config_name="demo")
 def main(cfg: DictConfig):
@@ -40,6 +41,10 @@ def main(cfg: DictConfig):
 
     else:
         dataloader = video_stream(imagedir, calib, stride, skip)
+
+    temp_data = enumerate(tqdm(dataloader))
+    print('temp data:')
+    print(temp_data)
 
     image_list = []
     intrinsics_list = []
