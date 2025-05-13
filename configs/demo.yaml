@@ -4,9 +4,9 @@ slam:
 
   REMOVAL_WINDOW: 20
   OPTIMIZATION_WINDOW: 15
-  PATCH_LIFETIME: 12
+  PATCH_LIFETIME: 12 
 
-  PATCHES_PER_FRAME: 100
+  PATCHES_PER_FRAME: 100 # num of tracked objects
   BUFFER_SIZE: 1024
 
   PATCH_GEN: grid_grad_10
@@ -35,7 +35,7 @@ visualizer:
   save_dir: "./results"
   grayscale: false
   pad_value: 0
-  fps: 10
+  fps: 25 # 10 # needs to be adjusted based on input video
   mode: "rainbow"  # 'cool', 'optical_flow'
   linewidth: 2
   show_first_frame: 10
@@ -88,3 +88,5 @@ save_trajectory: true
 save_video: true
 save_plot: true
 viz: false
+
+save_track_data: true

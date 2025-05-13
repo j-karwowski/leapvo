@@ -1,5 +1,6 @@
 import math
 import os
+import json
 
 import hydra
 import torch
@@ -93,6 +94,16 @@ def main(cfg: DictConfig):
 
     if cfg.save_video:
         slam.visualizer.save_video(filename=cfg.slam.PATCH_GEN)
+    
+    if cfg.save_track_data:
+        print(f"Track data saved to TODO")
+
+        # all_targets = []
+        # for track in slam.visualizer.tracks:
+        #     all_targets.append(targets = track["targets"])
+    
+        with open(f"{cfg.data.savedir}/{cfg.data.name}/track_data.txt", "w") as f:
+            json.dump(slam.visualizer.tensor_to_list(slam.visualizer.tracks), f, indent=4)
 
     if cfg.save_plot:
         plot_trajectory(

@@ -314,10 +314,10 @@ class LEAPVO:
             xy_gt (tensor): B, S, N, 2
             valid (tensor): B, S, N, 2
         """
-        print('In get_gt_trajs()')
+        #  sprint('In get_gt_trajs()')
         B, N = xys.shape[:2]
         S = len(self.local_window_depth_g)
-        print(f'- S {S} and N {N}')
+        # print(f'- S {S} and N {N}')
 
         depths = (
             torch.stack(self.local_window_depth_g, dim=0).unsqueeze(0).to(xys.device)
@@ -563,7 +563,7 @@ class LEAPVO:
                 )
                 statie_e = 1 - dynamic_e
 
-                print(f'- dynamic_e ({dynamic_e.shape}) - ex. {dynamic_e[0][1][:5]}')
+                # print(f'- dynamic_e ({dynamic_e.shape}) - ex. {dynamic_e[0][1][:5]}')
             else:
                 statie_e = 1 - stats["dynamic_e"]
             static_th = torch.quantile(statie_e, (1 - self.cfg.slam.STATIC_QUANTILE))
@@ -614,11 +614,11 @@ class LEAPVO:
         if coords_vars is not None:
             stats["coords_vars"] = coords_vars[:, :S_local]
 
-        print(f'- static_label ({static_label.shape}) - ex. {static_label[0][0][:5]}')
-       # print(f'- statie_e ({statie_e.shape}) - ex. {statie_e[0][1][:5]}')
-        print(f'- local_target (trajs) ({local_target.shape}) - ex. {local_target[0][0][0]}')
-        print(f'- vis_label ({vis_label.shape}) - ex. {vis_label[0][0][:5]}')
-        print(f'- queries ({queries.shape}) - ex. {queries[0][0][:5]}')
+        # print(f'- static_label ({static_label.shape}) - ex. {static_label[0][0][:5]}')
+        # print(f'- statie_e ({statie_e.shape}) - ex. {statie_e[0][1][:5]}')
+        # print(f'- local_target (trajs) ({local_target.shape}) - ex. {local_target[0][0][0]}')
+        # print(f'- vis_label ({vis_label.shape}) - ex. {vis_label[0][0][:5]}')
+        # print(f'- queries ({queries.shape}) - ex. {queries[0][0][:5]}')
         # Stats is a dictionary consisting of 'vis_label', 'static_label', 'conf_label' and 'coords_vars'
   
         return local_target, vis_label, queries, stats
@@ -642,7 +642,7 @@ class LEAPVO:
         # print(f'- S {S} and N {N}')
 
         local_target = rearrange(trajs, "b s n c -> b (n s) c")
-        print(f'- local_target (trajs) after 1. rearrange ({local_target.shape}) - ex. {local_target[0][0][0]}')
+        # print(f'- local_target (trajs) after 1. rearrange ({local_target.shape}) - ex. {local_target[0][0][0]}')
 
         # predict weight
         local_weight = torch.ones_like(local_target)
@@ -690,11 +690,11 @@ class LEAPVO:
             "weights": local_weight_,
             "queries": queries,
         }
-        print(f'- vis_data: \n-- fid: {vis_data["fid"]} \n-- targets: {vis_data["targets"].shape} \n-- weights: {vis_data["weights"].shape} \n-- queries: {vis_data["queries"].shape}')
+        # print(f'- vis_data: \n-- fid: {vis_data["fid"]} \n-- targets: {vis_data["targets"].shape} \n-- weights: {vis_data["weights"].shape} \n-- queries: {vis_data["queries"].shape}')
         for key, value in stats.items():
             if value is not None:
                 vis_data[key] = value
-        print(f'- vis_data: \n-- vis_label: {vis_data["vis_label"].shape} \n-- static_label: {vis_data["static_label"].shape} \n-- conf_label: {vis_data["conf_label"].shape}  \n-- coords_vars: {vis_data["coords_vars"].shape}')
+        # print(f'- vis_data: \n-- vis_label: {vis_data["vis_label"].shape} \n-- static_label: {vis_data["static_label"].shape} \n-- conf_label: {vis_data["conf_label"].shape}  \n-- coords_vars: {vis_data["coords_vars"].shape}')
 
         self.visualizer.add_track(vis_data)
 

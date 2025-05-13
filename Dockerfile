@@ -50,7 +50,7 @@ RUN rm -rf thirdparty && mkdir thirdparty && unzip eigen-3.4.0.zip -d thirdparty
 COPY . /workspace/
 
 # Expose API port
-EXPOSE 8000
+# EXPOSE 8000
 
 # Run FastAPI
 # CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
@@ -59,7 +59,7 @@ EXPOSE 8000
 # CMD ["bash", "-c", "pip install ."]
 
 # Use bash to run the script
-# COPY docker/start.sh /workspace/docker/start.sh
+COPY docker/start.sh /workspace/docker/start.sh
 RUN chmod +x docker/start.sh
 
 ENTRYPOINT ["/bin/bash", "docker/start.sh"]

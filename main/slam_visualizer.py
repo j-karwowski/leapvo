@@ -86,7 +86,7 @@ class SLAMVisualizer:
         res_video_dyn = []
         # process input video
         for rgb in video:
-            print(f'- rgb: {rgb}')
+            # print(f'- rgb: {rgb}')
             res_video_sta.append(rgb.copy())
             res_video_dyn.append(rgb.copy())
 
@@ -222,7 +222,7 @@ class LEAPVisualizer(SLAMVisualizer):
         vector_colors: np.ndarray,
         alpha: float = 0.5,
     ):
-        print('-- In _draw_pred_tracks().')
+        # print('-- In _draw_pred_tracks().')
         T, N, _ = tracks.shape
 
         # print(f'--- Tracks ({tracks.shape})')
@@ -256,14 +256,14 @@ class LEAPVisualizer(SLAMVisualizer):
         visibility: torch.Tensor = None,
         variances: torch.Tensor = None,
     ):
-        print('- In draw_tracks_on_video()')
+        # print('- In draw_tracks_on_video()')
         B, T, C, H, W = video.shape
         _, _, N, D = tracks.shape
 
-        print(f'-- T {T} and N {N}')
+        # print(f'-- T {T} and N {N}')
 
-        print(f'-- tracks ({tracks.shape})')    
-        print(f'-- video ({video.shape})')          
+        # print(f'-- tracks ({tracks.shape})')    
+        # print(f'-- video ({video.shape})')          
 
         assert D == 2
         assert C == 3
@@ -310,7 +310,7 @@ class LEAPVisualizer(SLAMVisualizer):
                 )
 
         #  draw points
-        print(f'-- Drawing points with their coords in for loop over T {T} and N {N}')
+        # f'-- Drawing points with their coords in for loop over T {T} and N {N}')
         for t in range(T): # loop through all frames in T --> Temporal loop
             invalid_coords = 0
             for i in range(N): # loop through all N tracked objects
@@ -378,17 +378,18 @@ class LEAPVisualizer(SLAMVisualizer):
         print('In draw_tracks_on_frames() (in line 350):')
         video = torch.stack(self.frames, dim=0) # generate video by stacking individual frames
         N, C, H, W = video.shape 
-        print(f'video shape: {video.shape}')
+        # print(f'video shape: {video.shape}')
 
         # customization here: Make video all white, to get clearer view of track movements
-        video = torch.full((N, C, H, W), 255, dtype=video.dtype)
+        # video = torch.full((N, C, H, W), 255, dtype=video.dtype)
+
         video = F.pad( # padding video equally on all sides of video (value is 0)
             video,
             (self.pad_value, self.pad_value, self.pad_value, self.pad_value),
             "constant",
             255,
         )
-        print(f'- video length in frames: {len(video)}')
+        # print(f'- video length in frames: {len(video)}')
 
         # customization here: Drawing all dots on one single video
         # res_video_sta = video.clone()
@@ -396,15 +397,40 @@ class LEAPVisualizer(SLAMVisualizer):
         combined_video = video.clone()
 
         T = self.fps  # period of color repetition (default 10)
-        print(f'- self.tracks ({len(self.tracks)})') # 25 for sintel # 50 for my data, i.e. every other frame is skipped
+        # print(f'- self.tracks ({len(self.tracks)})') # 25 for sintel # 50 for my data, i.e. every other frame is skipped
         
-        with open("track_data.txt", "w") as f:
-            json.dump(self.tensor_to_list(self.tracks), f, indent=4)
+        last_frame = 0
+        current_frame = 0
+        current_fid = 0
+        repetition = self.cfg_full.slam.S_slam/self.cfg_full.slam.kf_stride 
 
         for t, track in enumerate(self.tracks):
-            print(f'- For loop over T {t} - Track with FID: {track["fid"]}')
+            # print(f'- For loop over T {t} - Track with FID: {track["fid"]}')
             fid = track["fid"] # frame id
+            
+
+            # Customization: Only use every 6th frame with FID 
+            # if t>0 and ((t%repetition) == 0 or t == len(self.tracks)):
+            #     current_fid = fid
+            # else:
+            #     print(f'-- Skip track with FID {fid} - due to overlap.')
+            #     continue
+
             targets = track["targets"] + self.pad_value # coordinates of tracked points
+
+            # current_frame += len(targets[0]) 
+            # frames_to_process = current_frame - last_frame 
+            frames_to_process = len(targets[0]) # number of frames to process
+            # print(f'-- current_frame {current_frame} and last_frame {last_frame} - frames_to_process {frames_to_process}')    
+            # last_frame = current_frame
+
+            keyframe = 0 # TODO: Which keyframe should we choose or should we choose multiple keyframes?
+            # remove every row in the 3rd dimension of targets except of the keyframe row
+            zero_targets = torch.zeros_like(targets)
+            zero_targets[:, -frames_to_process:, keyframe, :, :] = targets[:, -frames_to_process:, keyframe, :, :]
+            custom_targets = targets[:, -frames_to_process:, keyframe:keyframe+1, :, :]
+            targets = zero_targets
+
             weights = track["weights"]
             queries = track["queries"]
             vis_label = track["vis_label"]
@@ -414,8 +440,8 @@ class LEAPVisualizer(SLAMVisualizer):
             # M = number of tracked points
             # C = dimension of tracks, e.g. (x, y)
 
-            print(f'- targets ({targets.shape})')
-            print(f'- S {S}, S1 {S1} and M {M}')
+            # print(f'- targets ({targets.shape})')
+            # print(f'- S {S}, S1 {S1} and M {M}')
 
             # initializing track colors
             vector_colors = np.zeros((S, S1, M, 3)) # array to store RGB colors for each track across frames
@@ -459,9 +485,9 @@ class LEAPVisualizer(SLAMVisualizer):
                 else None
             )
 
-            print(f'- yellow dyn_tracks ({dyn_tracks.shape})')
+            # print(f'- yellow dyn_tracks ({dyn_tracks.shape})')
 
-            print('- Call draw_tracks_on_video() with dynamic yellow parameters (no variance)')
+            # print('- Call draw_tracks_on_video() with dynamic yellow parameters (no variance)')
             # drawing dynamic yellow tracks on video
             res_video = self.draw_tracks_on_video(
                 video=dyn_rgbs, # visualizes the dynamic tracks on the selected frames (dyn_rgbs)
@@ -494,7 +520,7 @@ class LEAPVisualizer(SLAMVisualizer):
                     :, static_mask.detach().cpu().numpy()
                 ]
 
-                print(f'- red dyn_tracks ({dyn_tracks.shape})')
+                # print(f'- red dyn_tracks ({dyn_tracks.shape})')
 
                 # assigning red color to dynamic tracks
                 dyn_color = mpl.colors.to_rgba("red")
@@ -509,7 +535,7 @@ class LEAPVisualizer(SLAMVisualizer):
                     else None
                 )
 
-                print('- Call draw_tracks_on_video() with dynamic red parameters (with variance)')
+                # print('- Call draw_tracks_on_video() with dynamic red parameters (with variance)')
                 # drawing dynamic tracks 
                 # TODO: Are unertain yellow tracks drawn again in red?
                 res_video = self.draw_tracks_on_video(
@@ -544,9 +570,9 @@ class LEAPVisualizer(SLAMVisualizer):
                     if variances is not None
                     else None
                 )
-                print(f'- green sta_tracks ({sta_tracks.shape})')
+                # print(f'- green sta_tracks ({sta_tracks.shape})')
 
-                print('- Call draw_tracks_on_video() with static green parameters (with variance)')
+                # print('- Call draw_tracks_on_video() with static green parameters (with variance)')
                 # draw green static tracks 
                 res_video = self.draw_tracks_on_video(
                     video=rgbs,
@@ -562,7 +588,7 @@ class LEAPVisualizer(SLAMVisualizer):
                 # if static labels are not available it assumes all tracks are "static"
                 # rgbs = res_video_sta[fid - S : fid][None]
                 rgbs = combined_video[fid - S : fid][None] # customization
-                print('- Call draw_tracks_on_video() with general parameters (no variance)')
+                # print('- Call draw_tracks_on_video() with general parameters (no variance)')
                 # draw all tracks on res_video_sta without variance
                 res_video = self.draw_tracks_on_video(
                     video=rgbs,

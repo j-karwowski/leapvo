@@ -5,9 +5,11 @@ from pydantic import BaseModel
 app = FastAPI()
 
 class AIRequest(BaseModel):
+    calib_file: str
     input_dir: str
-    # calib_file: str
     output_dir: str
+    config_folder: str
+    config_file: str
     # add adjustable config
 
 
@@ -22,10 +24,11 @@ def run_model(request: AIRequest):
     try:
         command = [
             "python", "main/eval.py",
-            "--config-path=../configs",
-            "--config-name=demo",
+            "--config-path={request.config_folder}",
+            "--config-name={request.config_file}",
             f"data.imagedir={request.input_dir}",
-            f"data.calib=calibs/demo_calib.txt",
+            # f"data.calib=calibs/demo_calib.txt",
+            f"data.calib={request.calib_file}",
             f"data.savedir={request.output_dir}",
             "save_trajectory=true",
             "save_video=true",
@@ -36,5 +39,3 @@ def run_model(request: AIRequest):
     
     except subprocess.CalledProcessError as e:
         return {"status": "error", "message": str(e)}
-
-# To run: `uvicorn api:app --host 0.0.0.0 --port 8000`
