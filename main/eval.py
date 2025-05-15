@@ -14,7 +14,7 @@ from main.utils import (eval_metrics, load_traj, plot_trajectory,
 
 HYDRA_FULL_ERROR=1
 
-@hydra.main(version_base=None, config_path="configs", config_name="demo")
+@hydra.main(version_base=None, config_path=None)
 def main(cfg: DictConfig):
 
     slam = None
@@ -27,10 +27,10 @@ def main(cfg: DictConfig):
         cfg.data.skip,
     )
 
-    print(f'image dir: {imagedir}')
-    print(f'calib: {calib}')
-    print(f'stride: {stride}')
-    print(f'skip: {skip}')
+    # print(f'image dir: {imagedir}')
+    # print(f'calib: {calib}')
+    # print(f'stride: {stride}')
+    # print(f'skip: {skip}')
 
     if os.path.isdir(imagedir):
         if cfg.data.traj_format == "sintel":
@@ -44,8 +44,8 @@ def main(cfg: DictConfig):
         dataloader = video_stream(imagedir, calib, stride, skip)
 
     temp_data = enumerate(tqdm(dataloader))
-    print('temp data:')
-    print(temp_data)
+    # print('temp data:')
+    # print(temp_data)
 
     image_list = []
     intrinsics_list = []
@@ -53,7 +53,7 @@ def main(cfg: DictConfig):
         if t < 0:
             break
         
-        print(f'\n---- FOR-LOOP: {t}, {image.shape}, {intrinsics}')
+        # print(f'\n---- FOR-LOOP: {t}, {image.shape}, {intrinsics}')
 
         image_list.append(image)
         intrinsics_list.append(intrinsics)
@@ -95,15 +95,14 @@ def main(cfg: DictConfig):
     if cfg.save_video:
         slam.visualizer.save_video(filename=cfg.slam.PATCH_GEN)
     
-    if cfg.save_track_data:
-        print(f"Track data saved to TODO")
-
+    if cfg.save_track_data: 
         # all_targets = []
         # for track in slam.visualizer.tracks:
         #     all_targets.append(targets = track["targets"])
     
         with open(f"{cfg.data.savedir}/{cfg.data.name}/track_data.txt", "w") as f:
             json.dump(slam.visualizer.tensor_to_list(slam.visualizer.tracks), f, indent=4)
+        print(f"Track data saved to {cfg.data.savedir}/{cfg.data.name}/track_data.txt")
 
     if cfg.save_plot:
         plot_trajectory(

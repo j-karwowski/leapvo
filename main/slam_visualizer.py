@@ -46,7 +46,7 @@ class SLAMVisualizer:
         if save_dir is not None:
             self.save_dir = save_dir
 
-        print(f'cfg full: {self.cfg_full}')
+        # print(f'cfg full: {self.cfg_full}')
 
         if self.cfg.mode == "rainbow":
             self.color_map = mpl.colormaps["gist_rainbow"]
@@ -72,7 +72,7 @@ class SLAMVisualizer:
 
     # TODO: This method exists double and is never called
     def draw_tracks_on_frames(self):
-        print('In draw_tracks_on_frames() (in line 74):')
+        # print('In draw_tracks_on_frames() (in line 74):')
         video = torch.stack(self.frames, dim=0)
         video = F.pad(
             video,
