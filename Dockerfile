@@ -4,6 +4,7 @@ FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CUDA_HOME="/usr/local/cuda"
+ENV CONDA_PLUGINS_AUTO_ACCEPT_TOS="yes"
 
 # Set the working directory and copy important files
 WORKDIR /workspace
