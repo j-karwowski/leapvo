@@ -27,8 +27,17 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Installiere Miniconda
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /miniconda.sh && \
+# Install Miniconda
+#
+# NOTE: the newest pre-25 version is selected here (matching Python 3.10) instead of
+# https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh to prevent the following error:
+#
+#   File "/opt/miniconda/lib/python3.13/site-packages/conda_anaconda_telemetry/hooks.py", line 121, in get_install_arguments
+#     return context._argparse_args.packages
+#            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# AttributeError: 'AttrDict' object has no attribute 'packages'
+#
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py310_24.11.1-0-Linux-x86_64.sh -O /miniconda.sh && \
     bash /miniconda.sh -b -p /opt/miniconda && \
     rm /miniconda.sh
 
@@ -43,7 +52,8 @@ RUN echo "source activate leapvo-env" > ~/.bashrc
 ENV PATH=/opt/miniconda/envs/leapvo-env/bin:$PATH
 
 # Add cuda path
-ENV PATH=/usr/local/cuda-11.3/bin${PATH:+:${PATH}}
+# After building the image, inspect the CUDA installation directory to ensure the correct version is used
+ENV PATH=/usr/local/cuda-11.8/bin${PATH:+:${PATH}}
 
 # Setup Eigen
 RUN rm -rf thirdparty && mkdir thirdparty && unzip eigen-3.4.0.zip -d thirdparty
@@ -56,7 +66,7 @@ COPY . /workspace/
 # Run FastAPI
 # CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
 
-# Install CUDA extensions on runtime 
+# Install CUDA extensions on runtime
 # CMD ["bash", "-c", "pip install ."]
 
 # Use bash to run the script

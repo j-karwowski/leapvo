@@ -1,5 +1,24 @@
 # LEAP-VO: Long-term Effective Any Point Tracking for Visual Odometry
 
+tldr:
+
+- Set up Docker image and run a container:
+
+  ```sh
+  git clone --recursive https://github.com/j-karwowski/leapvo.git
+  cd leapvo
+  docker build -t leapvo_forked:latest .
+  docker run --name leapvo_container --rm -it -e TORCH_CUDA_ARCH_LIST='8.9' --net=host -v $(realpath .):/workspace leapvo_forked:latest
+  ```
+
+- Attach a Bash session to a running container:
+
+  ```sh
+  docker exec -it leapvo_container /bin/bash
+  ```
+
+---
+
 **[CVPR 2024]** The repository contains the official implementation of [LEAP-VO](https://github.com/chiaki530/leapvo). We aim to leverage **temporal context with long-term point tracking** to achieve motion estimation, occlusion handling, and track probability modeling.
 
 
